@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="{{charset}}">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{pageTitle}}</title>
+    <style>
+        html {
+            background: {{backgroundColor}};
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+<canvas id="{{canvasId}}"></canvas>
+<script>
+    // inspired by Adam Nagy (https://dev.to/javascriptacademy)
+    const canvas = document.getElementById('{{canvasId}}');
+    const context = canvas.getContext('2d');
+
+    // making the canvas full screen
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let chars = '{{characters}}';
+    // converting the string into an array of single characters
+    chars = chars.split('');
+
+    const fontSize = {{fontSize}};
+    const columns = canvas.width / fontSize; // number of columns for the rain
+    // an array of drops - one per column
+    const drops = [ ];
+    // x below is the x coordinate
+    // 1 = y coordinate of the drop (same for every drop initially)
+    for (let x = 0; x < columns; x++) drops[ x ] = 1;
+
+    // drawing the characters
+    const draw = () => {
+        // black background for the canvas, translucent background to show trail
+        context.fillStyle = 'rgba(0, 0, 0, 0.05)';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        context.fillStyle = '{{textColor}}';
+        context.font = fontSize + 'px {{fontFamily}}';
+
+        // looping over drops
+        for (let i = 0; i < drops.length; i++) {
+            // a random character to print
+            const text = chars[ (Math.floor(Math.random() * chars.length)) ];
+            context.fillText(text, i * fontSize, drops[ i ] * fontSize);
+
+            // sending the drop back to the top randomly after it has crossed the screen
+            // adding a randomness to the reset to make the drops scattered on the Y axis
+            if (((drops[ i ] * fontSize) > canvas.height) && (Math.random() > 0.975)) drops[ i ] = 0;
+
+            //incrementing Y coordinate
+            drops[ i ]++;
+        }
+    }
+
+    setInterval(draw, {{interval}});
+</script>
+</body>
+</html>
