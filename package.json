@@ -1,6 +1,6 @@
 {
   "name": "express-router-the-matrix",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Node.js Express route that returns a configurable matrix of falling letters",
   "files": [
     "index.js",

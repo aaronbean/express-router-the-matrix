@@ -45,7 +45,7 @@
     // drawing the characters
     const draw = () => {
         // black background for the canvas, translucent background to show trail
-        context.fillStyle = 'rgba(0, 0, 0, 0.05)';
+        context.fillStyle = 'rgba({{backgroundRgb.r}}, {{backgroundRgb.g}}, {{backgroundRgb.b}}, {{backgroundRgb.a}})';
         context.fillRect(0, 0, canvas.width, canvas.height);
 
         context.fillStyle = '{{textColor}}';
