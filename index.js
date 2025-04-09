@@ -13,8 +13,8 @@ function theMatrixRoute(options) {
         const dataOptions = {
             backgroundColor: options.backgroundColor || options.bg || options.background || null,
             characters: options.characters || options.chars || null,
+            pageTitle: options.pageTitle || options.title || null,
             textColor: options.textColor || options.color || null,
-            title: options.title || null,
         };
         const html = template(buildTemplateData(dataOptions));
         const minifiedHtml = await minifyHtml(html, options.minify);
