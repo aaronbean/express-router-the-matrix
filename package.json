@@ -1,6 +1,6 @@
 {
   "name": "express-router-the-matrix",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Node.js Express route that returns a configurable matrix of falling letters",
   "files": [
     "index.js",
@@ -12,11 +12,11 @@
     "url": "git://github.com/aaronbean/express-router-the-matrix.git"
   },
   "keywords": [
-    "nodejs",
     "express",
-    "router",
+    "falling",
     "matrix",
-    "falling"
+    "nodejs",
+    "route"
   ],
   "author": {
     "name": "Aaron Bean",

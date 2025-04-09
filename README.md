@@ -32,7 +32,7 @@ const matrixRoute = theMatrixRoute({
     title: 'The Matrix',
 });
 
-app.use('/matrix', matrixRoute);
+app.get('/matrix', matrixRoute);
 
 app.listen(3000);
 ```
