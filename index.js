@@ -10,13 +10,7 @@ function theMatrixRoute(options) {
         if (!source) return null;
         const template = compileTemplate(source, options.compile);
         if (!template) return res.status(404);
-        const dataOptions = {
-            backgroundColor: options.backgroundColor || options.bg || options.background || null,
-            characters: options.characters || options.chars || null,
-            pageTitle: options.pageTitle || options.title || null,
-            textColor: options.textColor || options.color || null,
-        };
-        const html = template(buildTemplateData(dataOptions));
+        const html = template(buildTemplateData(options));
         const minifiedHtml = await minifyHtml(html, options.minify);
         if (!minifiedHtml) return res.status(404);
         return res.send(minifiedHtml);
