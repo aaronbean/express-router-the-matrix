@@ -1,10 +1,10 @@
-# express-route-the-matrix
+# express-router-the-matrix
 
 Node.js Express route that returns a configurable matrix of falling letters.
 
 ## Install
 ```
-npm i express-route-the-matrix
+npm i express-router-the-matrix
 ```
 
 ## Options
@@ -21,7 +21,7 @@ npm i express-route-the-matrix
 ## Usage
 ```javascript
 const express = require('express');
-const { theMatrixRoute } = require('express-route-the-matrix');
+const { theMatrixRoute } = require('express-router-the-matrix');
 
 const app = express();
 
