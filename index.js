@@ -6,7 +6,7 @@ const THE_MATRIX_TEMPLATE = 'the_matrix';
 
 async function buildMatrixHtml(options) {
     options = options || { };
-    return buildHtml(THE_MATRIX_TEMPLATE, options, options.compile, options.minify);
+    return buildHtml(THE_MATRIX_TEMPLATE, options, options.compile, true, options.minify);
 }
 
 function theMatrixRoute(options) {

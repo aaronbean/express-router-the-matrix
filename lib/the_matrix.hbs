@@ -61,12 +61,12 @@
         context.font = fontSize + 'px {{fontFamily}}';
 
         // randomly trigger the woman's appearance
-        if (!woman.active && Math.random() < 0.003) { // ~0.3% chance per frame
+        if ({{dressEnabled}} && !woman.active && (Math.random() < 0.003)) { // ~0.3% chance per frame
             woman.active = true;
             // Place her randomly, but keep her fully on screen
-            woman.x = canvas.width * 0.2 + Math.random() * (canvas.width * 0.6);
-            woman.y = canvas.height * 0.6 + Math.random() * (canvas.height * 0.3);
-            woman.timer = 150 + Math.random() * 200; // How many frames she persists
+            woman.x = (canvas.width * 0.2) + (Math.random() * (canvas.width * 0.6));
+            woman.y = (canvas.height * 0.6) + (Math.random() * (canvas.height * 0.3));
+            woman.timer = 150 + (Math.random() * 200); // How many frames she persists
         }
 
         // handle her disappearance
@@ -83,14 +83,14 @@
             const charY = drops[ i ] * fontSize;
 
             // swap color if the letter hits the mathematical silhouette
-            if (woman.active && isInsideSilhouette(charX, charY, woman.x, woman.y, woman.scale)) {
+            if ({{dressEnabled}} && woman.active && isInsideSilhouette(charX, charY, woman.x, woman.y, woman.scale)) {
                 // occasionally flash white to simulate lighting/fabric sheen
-                context.fillStyle = Math.random() > 0.9 ? '#ffb3b3' : '#ff1a1a';
-                context.shadowBlur = 8;
-                context.shadowColor = "red";
+                context.fillStyle = Math.random() > 0.9 ? '{{dressSheenColor}}' : '{{dressColor}}';
+                context.shadowBlur = {{dressShadowBlur}};
+                context.shadowColor = 'rgba({{dressShadowRgb.r}}, {{dressShadowRgb.g}}, {{dressShadowRgb.b}}, {{dressShadowRgb.a}})';
             } else {
                 // standard Matrix green
-                context.fillStyle = '#0F0';
+                context.fillStyle = '{{textColor}}';
                 context.shadowBlur = 0;
             }
 

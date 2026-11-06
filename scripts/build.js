@@ -8,11 +8,11 @@ const c = require('../lib/constants');
 
 async function buildMatrixHtml(options) {
     options = options || { };
-    return buildHtml(c.TEMPLATE_NAME, options, options.compile, options.minify);
+    return buildHtml(c.TEMPLATE_NAME, options, options.compile, false, options.minify);
 }
 
-async function outputMatrixHtml(pageTitle = null, characters = null, textColor = null) {
-    const html = await buildMatrixHtml({ pageTitle, characters, textColor });
+async function outputMatrixHtml(options) {
+    const html = await buildMatrixHtml(options);
     if (!html) return null;
     const outputFilePath = 'output/the_matrix.html';
     const outputDir = path.dirname(outputFilePath);
@@ -53,7 +53,7 @@ function parseCommandLineArgs() {
 (async () => {
     try {
         const options = parseCommandLineArgs();
-        const result = await outputMatrixHtml(options.pageTitle, options.characters, options.textColor);
+        const result = await outputMatrixHtml(options);
         const filesystemPath = result ? path.resolve(result) : null;
         console.log(`Matrix HTML file generated at: "${ filesystemPath }"`);
     } catch (e) {
