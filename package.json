@@ -1,11 +1,17 @@
 {
   "name": "express-router-the-matrix",
-  "version": "1.0.7",
+  "version": "1.1.0",
   "description": "Node.js Express route that returns a configurable matrix of falling letters",
+  "main": "index.js",
+  "scripts": {
+    "build": "node scripts/build.js"
+  },
   "files": [
     "index.js",
     "LICENSE",
-    "lib/"
+    "README.md",
+    "lib/",
+    "scripts/"
   ],
   "repository": {
     "type": "git",
@@ -16,21 +22,21 @@
     "falling",
     "matrix",
     "nodejs",
-    "route"
+    "route",
+    "woman in red"
   ],
   "author": {
     "name": "Aaron Bean",
     "email": "aaron.bean@gmail.com",
     "url": "https://darkartmailbox.com"
   },
-  "main": "index.js",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/aaronbean/express-router-the-matrix/issues"
   },
   "homepage": "https://github.com/aaronbean/express-router-the-matrix#readme",
   "dependencies": {
-    "handlebars": "^4.7.9",
+    "handlebars": "^4.7.10",
     "html-minifier-terser": "^7.2.0"
   }
 }

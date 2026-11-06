@@ -42,6 +42,15 @@
     // 1 = y coordinate of the drop (same for every drop initially)
     for (let x = 0; x < columns; x++) drops[ x ] = 1;
 
+    // Woman in Red state manager
+    let woman = {
+        active: false,
+        x: 0,
+        y: 0,
+        scale: 1.8,
+        timer: 0
+    };
+
     // drawing the characters
     const draw = () => {
         // black background for the canvas, translucent background to show trail
@@ -51,11 +60,41 @@
         context.fillStyle = '{{textColor}}';
         context.font = fontSize + 'px {{fontFamily}}';
 
-        // looping over drops
+        // randomly trigger the woman's appearance
+        if (!woman.active && Math.random() < 0.003) { // ~0.3% chance per frame
+            woman.active = true;
+            // Place her randomly, but keep her fully on screen
+            woman.x = canvas.width * 0.2 + Math.random() * (canvas.width * 0.6);
+            woman.y = canvas.height * 0.6 + Math.random() * (canvas.height * 0.3);
+            woman.timer = 150 + Math.random() * 200; // How many frames she persists
+        }
+
+        // handle her disappearance
+        if (woman.active) {
+            woman.timer--;
+            if (woman.timer <= 0) woman.active = false;
+        }
+
+        // draw the falling characters
         for (let i = 0; i < drops.length; i++) {
             // a random character to print
             const text = chars[ (Math.floor(Math.random() * chars.length)) ];
-            context.fillText(text, i * fontSize, drops[ i ] * fontSize);
+            const charX = i * fontSize;
+            const charY = drops[ i ] * fontSize;
+
+            // swap color if the letter hits the mathematical silhouette
+            if (woman.active && isInsideSilhouette(charX, charY, woman.x, woman.y, woman.scale)) {
+                // occasionally flash white to simulate lighting/fabric sheen
+                context.fillStyle = Math.random() > 0.9 ? '#ffb3b3' : '#ff1a1a';
+                context.shadowBlur = 8;
+                context.shadowColor = "red";
+            } else {
+                // standard Matrix green
+                context.fillStyle = '#0F0';
+                context.shadowBlur = 0;
+            }
+
+            context.fillText(text, charX, charY);
 
             // sending the drop back to the top randomly after it has crossed the screen
             // adding a randomness to the reset to make the drops scattered on the Y axis
@@ -66,7 +105,53 @@
         }
     }
 
+    /**
+     * Mathematical hit-testing for the silhouette.
+     * @param {number} x - The letter's X coordinate
+     * @param {number} y - The letter's Y coordinate
+     * @param {number} wx - The woman's bottom-center X coordinate
+     * @param {number} wy - The woman's bottom-center Y coordinate
+     * @param {number} scale - Size multiplier
+     */
+    function isInsideSilhouette(x, y, wx, wy, scale) {
+        let dx = Math.abs(x - wx); // Distance from center axis
+        let dy = wy - y;           // Distance from bottom (0 is feet, moving up)
+
+        // Bounding box check (performance optimization)
+        if (dy < 0 || dy > 300 * scale) return false;
+
+        // 1. Head (Circle)
+        if (dy > 260 * scale && dy < 290 * scale) {
+            return dx < 15 * scale;
+        }
+
+        // 2. Torso (Tapered column)
+        if (dy >= 180 * scale && dy <= 260 * scale) {
+            let width = 10 * scale;
+            if (dy > 200 * scale) width += (dy - 200 * scale) * 0.15; // Chest expands
+            if (dy > 240 * scale) width -= (dy - 240 * scale) * 0.3;  // Neck tapers
+            return dx < width;
+        }
+
+        // 3. Flowing Dress (Flared triangle with sine waves for folds)
+        if (dy >= 0 && dy < 180 * scale) {
+            // Base flare from waist down to the floor
+            let width = 12 * scale + (180 * scale - dy) * 0.5;
+            // Add a subtle wave to simulate the folds of the dress
+            width += Math.sin(dy * 0.05) * 5 * scale;
+            return dx < width;
+        }
+
+        return false;
+    }
+
     setInterval(draw, {{interval}});
+
+    // handle window resizing
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
 </script>
 </body>
 </html>
