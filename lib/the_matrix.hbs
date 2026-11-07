@@ -24,7 +24,7 @@
             right: 15px;
             background: rgba(0, 20, 0, 0.85);
             border: 1px solid #00ff41;
-            padding: 12px 16px;
+            padding: 14px 16px;
             border-radius: 6px;
             color: #00ff41;
             font-family: monospace;
@@ -34,15 +34,39 @@
             font-size: 13px;
             z-index: 10;
         }
-        #controls input { accent-color: #ff1a1a; cursor: pointer; }
+
+        .control-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: #ff2a2a;
+            text-shadow: 0 0 8px rgba(255, 0, 0, 0.7);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(0, 255, 65, 0.3);
+            padding-bottom: 6px;
+            margin-bottom: 2px;
+        }
+
+        #controls input[type="range"] {
+            accent-color: #ff1a1a;
+            cursor: pointer;
+        }
+
+        #controls input[type="checkbox"] {
+            accent-color: #ff1a1a;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
 {{#if showControls}}
 <div id="controls">
+    <div class="control-title">The Woman in the Red Dress</div>
+    <label style="display: flex; align-items: center; gap: 8px;">
+        <input type="checkbox" id="walkToggle" {{#if womanAllowWalking}}checked{{/if}}> Enable Walking
+    </label>
     <label>Interval (Cooldown): <span id="intervalVal">20-60s</span></label>
     <input type="range" id="intervalSlider" min="5" max="120" value="40">
-
     <label>Stay Duration: <span id="durationVal">5-12s</span></label>
     <input type="range" id="durationSlider" min="2" max="30" value="8">
 </div>
@@ -78,13 +102,22 @@
         maxInterval: {{womanInterval.max}}, // maximum seconds between appearances
         minDuration: {{womanDuration.min}}, // minimum seconds she stays visible
         maxDuration: {{womanDuration.max}}, // maximum seconds she stays visible
+        allowWalking: {{womanAllowWalking}}, // toggle: true = walks, false = stationary
+        walkChance: 0.7, // 70% chance to walk when spawned (if allowWalking is true)
+        stepBobHeight: 4, // subtle pixel bounce per step
+        stepCadence: 2.5 // steps per second
     };
 
     {{#if showControls}}
+    const walkToggle  = document.getElementById('walkToggle');
     const intervalSlider = document.getElementById('intervalSlider');
     const durationSlider = document.getElementById('durationSlider');
     const intervalVal = document.getElementById('intervalVal');
     const durationVal = document.getElementById('durationVal');
+
+    walkToggle.addEventListener('change', (e) => {
+        womanConfig.allowWalking = e.target.checked;
+    });
 
     intervalSlider.addEventListener('input', (e) => {
         const val = parseFloat(e.target.value);
@@ -109,8 +142,13 @@
         x: 0,
         y: 0,
         scale: 1.8,
-        nextSpawnTime: Date.now() + (womanConfig.initialDelay * 1000),
+        isWalking: false,
+        direction: 1, // 1 = moving right, -1 = moving left
+        startX: 0,
+        targetX: 0,
+        spawnTime: 0,
         despawnTime: 0,
+        nextSpawnTime: Date.now() + (womanConfig.initialDelay * 1000),
     };
 
     // drawing the characters
@@ -132,7 +170,7 @@
             const charY = drops[ i ] * fontSize;
             let charStyle = null;
 
-            if (woman.enabled && woman.active) charStyle = getSilhouetteStyle(charX, charY, woman.x, woman.y, woman.scale);
+            if (woman.enabled && woman.active) charStyle = getSilhouetteStyle(charX, charY, woman.x, woman.y, woman.scale, woman.direction);
 
             // swap color if the letter hits the mathematical silhouette
             if (charStyle && isInsideSilhouette(charX, charY, woman.x, woman.y, woman.scale)) {
@@ -160,86 +198,58 @@
      * Maps coordinates to specific colors (hair, skin, dress).
      * Returns a style object if inside the figure, or null if outside.
      */
-    function getSilhouetteStyle(x, y, wx, wy, scale) {
-        const dx = (x - wx) / scale;
+    function getSilhouetteStyle(x, y, wx, wy, scale, direction = 1) {
+        // multiplying by direction flips the silhouette horizontally when walking left (-1)
+        const dx = ((x - wx) * direction) / scale;
         const dy = (wy - y) / scale;
 
-        // Fast bounding-box exit
+        // fast bounding-box exit
         if (dy < 0 || dy > 400 || dx < -110 || dx > 130) return null;
 
-        // Defined palette mapping
         const PALETTE = {
             HAIR:  { fill: '{{womanHair.color}}', glow: 'rgba({{womanHair.glowRgb.r}}, {{womanHair.glowRgb.g}}, {{womanHair.glowRgb.b}}, {{womanHair.glowRgb.a}})' },
             SKIN:  { fill: '{{womanSkin.color}}', glow: 'rgba({{womanSkin.glowRgb.r}}, {{womanSkin.glowRgb.g}}, {{womanSkin.glowRgb.b}}, {{womanSkin.glowRgb.a}})' },
             DRESS: { fill: '{{womanDress.color}}', glow: 'rgba({{womanDress.glowRgb.r}}, {{womanDress.glowRgb.g}}, {{womanDress.glowRgb.b}}, {{womanDress.glowRgb.a}})' },
         };
 
-        // 1. HEAD & FACE (dy: 315 to 395)
+        // 1. HEAD & FACE
         if (dy >= 315 && dy <= 395) {
-            // Crown & top volume of hair
             if (dy > 365 && Math.abs(dx) <= 30) return PALETTE.HAIR;
-
-            // Sides of hair framing the face
-            if (dy <= 365 && ((dx >= -38 && dx <= -12) || (dx >= 12 && dx <= 38))) {
-                return PALETTE.HAIR;
-            }
-
-            // Entire face rendered as skin
-            if (Math.abs(dx) < 12) {
-                return PALETTE.SKIN;
-            }
+            if (dy <= 365 && ((dx >= -38 && dx <= -12) || (dx >= 12 && dx <= 38))) return PALETTE.HAIR;
+            if (Math.abs(dx) < 12) return PALETTE.SKIN;
         }
 
-        // 2. NECK & DÉCOLLETAGE (dy: 270 to 315)
+        // 2. NECK & DÉCOLLETAGE
         if (dy > 270 && dy < 315) {
-            // Halter straps running up toward the neck
-            if (Math.abs(dx) >= 11 && Math.abs(dx) <= 21) {
-                return PALETTE.DRESS;
-            }
-            // Exposed chest & neck skin
-            if (Math.abs(dx) < 11) {
-                return PALETTE.SKIN;
-            }
-            // Bare shoulders outside halter straps
-            if (Math.abs(dx) > 21 && Math.abs(dx) <= 36 && dy <= 285) {
-                return PALETTE.SKIN;
-            }
+            if (Math.abs(dx) >= 11 && Math.abs(dx) <= 21) return PALETTE.DRESS;
+            if (Math.abs(dx) < 11) return PALETTE.SKIN;
+            if (Math.abs(dx) > 21 && Math.abs(dx) <= 36 && dy <= 285) return PALETTE.SKIN;
         }
 
-        // 3. BARE ARMS (dy: 140 to 285)
-        // Viewer's left arm (hanging down)
+        // 3. ARMS
         if (dx < 0 && dy >= 140 && dy <= 280) {
             const armX = -32 - (280 - dy) * 0.14;
             if (Math.abs(dx - armX) <= 9) return PALETTE.SKIN;
         }
-        // Viewer's right arm (bent forward)
         if (dx > 0) {
-            // Upper arm
             if (dy >= 225 && dy <= 285) {
                 const armX = 32 + (285 - dy) * 0.85;
                 if (Math.abs(dx - armX) <= 10) return PALETTE.SKIN;
             }
-            // Forearm & hand
             if (dy >= 150 && dy < 225) {
                 const armX = 83 + (225 - dy) * 0.22;
                 if (Math.abs(dx - armX) <= 8) return PALETTE.SKIN;
             }
         }
 
-        // 4. THE RED DRESS (dy: 40 to 275)
+        // 4. THE RED DRESS
         if (dy >= 40 && dy <= 275) {
             let bodyWidth = 22;
-            if (dy > 230) {
-                bodyWidth = 22 + (dy - 230) * 0.2;
-            } else if (dy > 140) {
-                bodyWidth = 22 + Math.sin((dy - 140) / 90 * Math.PI) * 12;
-            } else {
-                bodyWidth = 22 - (140 - dy) * 0.05;
-            }
+            if (dy > 230) bodyWidth = 22 + (dy - 230) * 0.2;
+            else if (dy > 140) bodyWidth = 22 + Math.sin((dy - 140) / 90 * Math.PI) * 12;
+            else bodyWidth = 22 - (140 - dy) * 0.05;
 
-            if (Math.abs(dx) <= bodyWidth) {
-                return PALETTE.DRESS;
-            }
+            if (Math.abs(dx) <= bodyWidth) return PALETTE.DRESS;
         }
 
         return null;
@@ -310,27 +320,62 @@
 
     function updateWomanState() {
         const now = Date.now();
-        // check if she is currently active and her time has expired
+
         if (woman.active) {
             if (now >= woman.despawnTime) {
                 woman.active = false;
-                // schedule next appearance using the configured interval range
                 const cooldownSec = womanConfig.minInterval + Math.random() * (womanConfig.maxInterval - womanConfig.minInterval);
                 woman.nextSpawnTime = now + (cooldownSec * 1000);
+                return;
+            }
+
+            // Handle walking movement
+            if (woman.isWalking) {
+                const totalDuration = woman.despawnTime - woman.spawnTime;
+                const elapsed = now - woman.spawnTime;
+                const progress = Math.min(1, elapsed / totalDuration);
+
+                // Linear horizontal progress from startX to targetX
+                woman.x = woman.startX + (woman.targetX - woman.startX) * progress;
+
+                // Rhythmic step bounce: subtle upward arch on every half-stride
+                const stepPhase = (elapsed / 1000) * womanConfig.stepCadence * Math.PI;
+                woman.y = woman.baseY - Math.abs(Math.sin(stepPhase)) * womanConfig.stepBobHeight;
             }
         }
-        // check if it is time to spawn her
         else if (now >= woman.nextSpawnTime) {
             woman.active = true;
+            woman.spawnTime = now;
 
-            // randomize placement
-            woman.x = canvas.width * 0.2 + Math.random() * (canvas.width * 0.6);
-            woman.y = canvas.height * 0.6 + Math.random() * (canvas.height * 0.3);
-
-            // schedule despawn time using the configured duration range
-            const stayDurationSec = womanConfig.minDuration +
-                    Math.random() * (womanConfig.maxDuration - womanConfig.minDuration);
+            const stayDurationSec = womanConfig.minDuration + Math.random() * (womanConfig.maxDuration - womanConfig.minDuration);
             woman.despawnTime = now + (stayDurationSec * 1000);
+
+            woman.baseY = canvas.height * 0.65 + Math.random() * (canvas.height * 0.2);
+            woman.y = woman.baseY;
+
+            // Decide if this appearance will be a walk or a stationary pause
+            woman.isWalking = womanConfig.allowWalking && (Math.random() < womanConfig.walkChance);
+
+            if (woman.isWalking) {
+                // Pick walking direction: 1 (moving right) or -1 (moving left)
+                woman.direction = Math.random() > 0.5 ? 1 : -1;
+
+                // Calculate a comfortable walking stride distance across the duration
+                const walkDistance = (120 + Math.random() * 180) * woman.scale;
+
+                if (woman.direction === 1) {
+                    woman.startX = canvas.width * 0.15 + Math.random() * (canvas.width * 0.3);
+                    woman.targetX = woman.startX + walkDistance;
+                } else {
+                    woman.startX = canvas.width * 0.85 - Math.random() * (canvas.width * 0.3);
+                    woman.targetX = woman.startX - walkDistance;
+                }
+                woman.x = woman.startX;
+            } else {
+                // Stationary spawn
+                woman.direction = 1;
+                woman.x = canvas.width * 0.25 + Math.random() * (canvas.width * 0.5);
+            }
         }
     }
 
