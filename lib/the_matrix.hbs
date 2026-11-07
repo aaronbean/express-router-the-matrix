@@ -17,14 +17,43 @@
             padding: 0;
             height: 100%;
         }
+
+        #controls {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 20, 0, 0.85);
+            border: 1px solid #00ff41;
+            padding: 12px 16px;
+            border-radius: 6px;
+            color: #00ff41;
+            font-family: monospace;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 13px;
+            z-index: 10;
+        }
+        #controls input { accent-color: #ff1a1a; cursor: pointer; }
     </style>
 </head>
 <body>
+{{#if showControls}}
+<div id="controls">
+    <label>Interval (Cooldown): <span id="intervalVal">20-60s</span></label>
+    <input type="range" id="intervalSlider" min="5" max="120" value="40">
+
+    <label>Stay Duration: <span id="durationVal">5-12s</span></label>
+    <input type="range" id="durationSlider" min="2" max="30" value="8">
+</div>
+{{/if}}
 <canvas id="{{canvasId}}"></canvas>
 <script>
     // inspired by Adam Nagy (https://dev.to/javascriptacademy)
+    const startTime = Date.now();
+
     const canvas = document.getElementById('{{canvasId}}');
-    const context = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d');
 
     // making the canvas full screen
     canvas.width = window.innerWidth;
@@ -42,38 +71,58 @@
     // 1 = y coordinate of the drop (same for every drop initially)
     for (let x = 0; x < columns; x++) drops[ x ] = 1;
 
+    // tunable settings (values in seconds)
+    const womanConfig = {
+        initialDelay: {{womanCooldown}}, // minimum seconds before the first appearance
+        minInterval: {{womanInterval.min}}, // minimum seconds between appearances
+        maxInterval: {{womanInterval.max}}, // maximum seconds between appearances
+        minDuration: {{womanDuration.min}}, // minimum seconds she stays visible
+        maxDuration: {{womanDuration.max}}, // maximum seconds she stays visible
+    };
+
+    {{#if showControls}}
+    const intervalSlider = document.getElementById('intervalSlider');
+    const durationSlider = document.getElementById('durationSlider');
+    const intervalVal = document.getElementById('intervalVal');
+    const durationVal = document.getElementById('durationVal');
+
+    intervalSlider.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        // sets a ±30% range around the slider's value
+        womanConfig.minInterval = Math.max(2, Math.round(val * 0.7));
+        womanConfig.maxInterval = Math.round(val * 1.3);
+        intervalVal.textContent = `${womanConfig.minInterval}-${womanConfig.maxInterval}s`;
+    });
+
+    durationSlider.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        womanConfig.minDuration = Math.max(1, Math.round(val * 0.7));
+        womanConfig.maxDuration = Math.round(val * 1.3);
+        durationVal.textContent = `${womanConfig.minDuration}-${womanConfig.maxDuration}s`;
+    });
+    {{/if}}
+
     // Woman in Red state manager
     let woman = {
         active: false,
+        enabled: {{womanEnabled}},
         x: 0,
         y: 0,
         scale: 1.8,
-        timer: 0
+        nextSpawnTime: Date.now() + (womanConfig.initialDelay * 1000),
+        despawnTime: 0,
     };
 
     // drawing the characters
     const draw = () => {
         // black background for the canvas, translucent background to show trail
-        context.fillStyle = 'rgba({{backgroundRgb.r}}, {{backgroundRgb.g}}, {{backgroundRgb.b}}, {{backgroundRgb.a}})';
-        context.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'rgba({{backgroundRgb.r}}, {{backgroundRgb.g}}, {{backgroundRgb.b}}, {{backgroundRgb.a}})';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        context.fillStyle = '{{textColor}}';
-        context.font = fontSize + 'px {{fontFamily}}';
+        ctx.fillStyle = '{{textColor}}';
+        ctx.font = fontSize + 'px {{fontFamily}}';
 
-        // randomly trigger the woman's appearance
-        if ({{dressEnabled}} && !woman.active && (Math.random() < 0.003)) { // ~0.3% chance per frame
-            woman.active = true;
-            // Place her randomly, but keep her fully on screen
-            woman.x = (canvas.width * 0.2) + (Math.random() * (canvas.width * 0.6));
-            woman.y = (canvas.height * 0.6) + (Math.random() * (canvas.height * 0.3));
-            woman.timer = 150 + (Math.random() * 200); // How many frames she persists
-        }
-
-        // handle her disappearance
-        if (woman.active) {
-            woman.timer--;
-            if (woman.timer <= 0) woman.active = false;
-        }
+        if (woman.enabled) updateWomanState();
 
         // draw the falling characters
         for (let i = 0; i < drops.length; i++) {
@@ -81,20 +130,22 @@
             const text = chars[ (Math.floor(Math.random() * chars.length)) ];
             const charX = i * fontSize;
             const charY = drops[ i ] * fontSize;
+            let charStyle = null;
+
+            if (woman.enabled && woman.active) charStyle = getSilhouetteStyle(charX, charY, woman.x, woman.y, woman.scale);
 
             // swap color if the letter hits the mathematical silhouette
-            if ({{dressEnabled}} && woman.active && isInsideSilhouette(charX, charY, woman.x, woman.y, woman.scale)) {
-                // occasionally flash white to simulate lighting/fabric sheen
-                context.fillStyle = Math.random() > 0.9 ? '{{dressSheenColor}}' : '{{dressColor}}';
-                context.shadowBlur = {{dressShadowBlur}};
-                context.shadowColor = 'rgba({{dressShadowRgb.r}}, {{dressShadowRgb.g}}, {{dressShadowRgb.b}}, {{dressShadowRgb.a}})';
+            if (charStyle && isInsideSilhouette(charX, charY, woman.x, woman.y, woman.scale)) {
+                ctx.fillStyle = charStyle.fill;
+                ctx.shadowColor = charStyle.glow;
+                ctx.shadowBlur = {{womanShadowBlur}};
             } else {
                 // standard Matrix green
-                context.fillStyle = '{{textColor}}';
-                context.shadowBlur = 0;
+                ctx.fillStyle = '{{textColor}}';
+                ctx.shadowBlur = 0;
             }
 
-            context.fillText(text, charX, charY);
+            ctx.fillText(text, charX, charY);
 
             // sending the drop back to the top randomly after it has crossed the screen
             // adding a randomness to the reset to make the drops scattered on the Y axis
@@ -106,7 +157,96 @@
     }
 
     /**
-     * Mathematical hit-testing for the silhouette.
+     * Maps coordinates to specific colors (hair, skin, dress).
+     * Returns a style object if inside the figure, or null if outside.
+     */
+    function getSilhouetteStyle(x, y, wx, wy, scale) {
+        const dx = (x - wx) / scale;
+        const dy = (wy - y) / scale;
+
+        // Fast bounding-box exit
+        if (dy < 0 || dy > 400 || dx < -110 || dx > 130) return null;
+
+        // Defined palette mapping
+        const PALETTE = {
+            HAIR:  { fill: '{{womanHair.color}}', glow: 'rgba({{womanHair.glowRgb.r}}, {{womanHair.glowRgb.g}}, {{womanHair.glowRgb.b}}, {{womanHair.glowRgb.a}})' },
+            SKIN:  { fill: '{{womanSkin.color}}', glow: 'rgba({{womanSkin.glowRgb.r}}, {{womanSkin.glowRgb.g}}, {{womanSkin.glowRgb.b}}, {{womanSkin.glowRgb.a}})' },
+            DRESS: { fill: '{{womanDress.color}}', glow: 'rgba({{womanDress.glowRgb.r}}, {{womanDress.glowRgb.g}}, {{womanDress.glowRgb.b}}, {{womanDress.glowRgb.a}})' },
+        };
+
+        // 1. HEAD & FACE (dy: 315 to 395)
+        if (dy >= 315 && dy <= 395) {
+            // Crown & top volume of hair
+            if (dy > 365 && Math.abs(dx) <= 30) return PALETTE.HAIR;
+
+            // Sides of hair framing the face
+            if (dy <= 365 && ((dx >= -38 && dx <= -12) || (dx >= 12 && dx <= 38))) {
+                return PALETTE.HAIR;
+            }
+
+            // Entire face rendered as skin
+            if (Math.abs(dx) < 12) {
+                return PALETTE.SKIN;
+            }
+        }
+
+        // 2. NECK & DÉCOLLETAGE (dy: 270 to 315)
+        if (dy > 270 && dy < 315) {
+            // Halter straps running up toward the neck
+            if (Math.abs(dx) >= 11 && Math.abs(dx) <= 21) {
+                return PALETTE.DRESS;
+            }
+            // Exposed chest & neck skin
+            if (Math.abs(dx) < 11) {
+                return PALETTE.SKIN;
+            }
+            // Bare shoulders outside halter straps
+            if (Math.abs(dx) > 21 && Math.abs(dx) <= 36 && dy <= 285) {
+                return PALETTE.SKIN;
+            }
+        }
+
+        // 3. BARE ARMS (dy: 140 to 285)
+        // Viewer's left arm (hanging down)
+        if (dx < 0 && dy >= 140 && dy <= 280) {
+            const armX = -32 - (280 - dy) * 0.14;
+            if (Math.abs(dx - armX) <= 9) return PALETTE.SKIN;
+        }
+        // Viewer's right arm (bent forward)
+        if (dx > 0) {
+            // Upper arm
+            if (dy >= 225 && dy <= 285) {
+                const armX = 32 + (285 - dy) * 0.85;
+                if (Math.abs(dx - armX) <= 10) return PALETTE.SKIN;
+            }
+            // Forearm & hand
+            if (dy >= 150 && dy < 225) {
+                const armX = 83 + (225 - dy) * 0.22;
+                if (Math.abs(dx - armX) <= 8) return PALETTE.SKIN;
+            }
+        }
+
+        // 4. THE RED DRESS (dy: 40 to 275)
+        if (dy >= 40 && dy <= 275) {
+            let bodyWidth = 22;
+            if (dy > 230) {
+                bodyWidth = 22 + (dy - 230) * 0.2;
+            } else if (dy > 140) {
+                bodyWidth = 22 + Math.sin((dy - 140) / 90 * Math.PI) * 12;
+            } else {
+                bodyWidth = 22 - (140 - dy) * 0.05;
+            }
+
+            if (Math.abs(dx) <= bodyWidth) {
+                return PALETTE.DRESS;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Mathematical hit-testing mapped to the specific Woman in Red photo.
      * @param {number} x - The letter's X coordinate
      * @param {number} y - The letter's Y coordinate
      * @param {number} wx - The woman's bottom-center X coordinate
@@ -114,35 +254,84 @@
      * @param {number} scale - Size multiplier
      */
     function isInsideSilhouette(x, y, wx, wy, scale) {
-        let dx = Math.abs(x - wx); // Distance from center axis
-        let dy = wy - y;           // Distance from bottom (0 is feet, moving up)
+        // Normalize coordinates to the scale for cleaner fixed-value math
+        const dx = (x - wx) / scale;
+        const dy = (wy - y) / scale;
 
-        // Bounding box check (performance optimization)
-        if (dy < 0 || dy > 300 * scale) return false;
+        // Fast bounding-box exit (optimizes render loop)
+        if (dy < 0 || dy > 400 || dx < -100 || dx > 150) return false;
 
-        // 1. Head (Circle)
-        if (dy > 260 * scale && dy < 290 * scale) {
-            return dx < 15 * scale;
+        // 1. Head & Voluminous Hair (dy: 320 to 390)
+        if (dy > 320 && dy <= 390) {
+            if (Math.abs(dx) < 18) return true; // Core head/face
+            if (dy < 370 && Math.abs(dx) < 38) return true; // Curled shoulder-length hair
         }
 
-        // 2. Torso (Tapered column)
-        if (dy >= 180 * scale && dy <= 260 * scale) {
-            let width = 10 * scale;
-            if (dy > 200 * scale) width += (dy - 200 * scale) * 0.15; // Chest expands
-            if (dy > 240 * scale) width -= (dy - 240 * scale) * 0.3;  // Neck tapers
-            return dx < width;
+        // 2. Fitted Torso & Skirt (dy: 50 to 320)
+        if (dy > 50 && dy <= 320) {
+            let bodyWidth = 22; // Narrowest point (waist)
+
+            if (dy > 260) {
+                // Chest and shoulders expanding upward
+                bodyWidth = 22 + (dy - 260) * 0.45;
+            } else if (dy > 140) {
+                // Hips curving outward and back in (tight fitted dress)
+                bodyWidth = 22 + Math.sin((dy - 140) / 120 * Math.PI) * 14;
+            } else {
+                // Tapered lower skirt/legs
+                bodyWidth = 22 - (140 - dy) * 0.05;
+            }
+
+            if (Math.abs(dx) < bodyWidth) return true;
         }
 
-        // 3. Flowing Dress (Flared triangle with sine waves for folds)
-        if (dy >= 0 && dy < 180 * scale) {
-            // Base flare from waist down to the floor
-            let width = 12 * scale + (180 * scale - dy) * 0.5;
-            // Add a subtle wave to simulate the folds of the dress
-            width += Math.sin(dy * 0.05) * 5 * scale;
-            return dx < width;
+        // 3. Right Arm (Viewer's Left) - hanging slightly away from the body
+        if (dy > 150 && dy < 290 && dx < 0) {
+            const armX = -32 - (290 - dy) * 0.15; // Slants outward slightly
+            if (Math.abs(dx - armX) < 10) return true; // 10px thickness creates negative space at waist
+        }
+
+        // 4. Left Arm (Viewer's Right) - extended and bent forward
+        if (dx > 0) {
+            // Upper arm (Shoulder bridging out to elbow)
+            if (dy > 230 && dy <= 290) {
+                const armX = 35 + (290 - dy) * 0.85;
+                if (Math.abs(dx - armX) < 11) return true;
+            }
+            // Forearm and hand (Elbow dropping down to hand)
+            if (dy > 160 && dy <= 230) {
+                const armX = 86 + (230 - dy) * 0.25;
+                if (Math.abs(dx - armX) < 9) return true;
+            }
         }
 
         return false;
+    }
+
+    function updateWomanState() {
+        const now = Date.now();
+        // check if she is currently active and her time has expired
+        if (woman.active) {
+            if (now >= woman.despawnTime) {
+                woman.active = false;
+                // schedule next appearance using the configured interval range
+                const cooldownSec = womanConfig.minInterval + Math.random() * (womanConfig.maxInterval - womanConfig.minInterval);
+                woman.nextSpawnTime = now + (cooldownSec * 1000);
+            }
+        }
+        // check if it is time to spawn her
+        else if (now >= woman.nextSpawnTime) {
+            woman.active = true;
+
+            // randomize placement
+            woman.x = canvas.width * 0.2 + Math.random() * (canvas.width * 0.6);
+            woman.y = canvas.height * 0.6 + Math.random() * (canvas.height * 0.3);
+
+            // schedule despawn time using the configured duration range
+            const stayDurationSec = womanConfig.minDuration +
+                    Math.random() * (womanConfig.maxDuration - womanConfig.minDuration);
+            woman.despawnTime = now + (stayDurationSec * 1000);
+        }
     }
 
     setInterval(draw, {{interval}});

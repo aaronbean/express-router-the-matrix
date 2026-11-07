@@ -12,11 +12,19 @@ npm i express-router-the-matrix
 |-------------------|---------------------------------|-------------------------|
 | `backgroundColor` | Background color of the matrix  | `'#000'` (black)        |
 | `characters`      | Characters to use in the matrix | `'アァカサタナABCDEF123456…'` |
-| `dressColor`      | Color of the woman's dress      | `'#FF1A1A'` (red)       |
-| `dressEnabled`    | Whether the woman's dress is enabled | `true`               |
-| `dressShadowBlur` | Shadow blur of the woman's dress| `8`                     |
-| `dressShadowOpacity` | Shadow opacity of the woman's dress | `1.0`               |
-| `dressSheenColor` | Sheen color of the woman's dress| `'#FFB3B3'` (light red) |
+| `womanCooldown`      | Cooldown time for the woman's actions (in seconds)      | `10` (10 seconds)       |
+| `womanDressColor`      | Color of the woman's dress      | `'#E60012'` (red)       |
+| `womanDurationMin`      | Minimum duration the woman stays visible (in seconds)      | `5` (5 seconds)       |
+| `womanDurationMax`      | Maximum duration the woman stays visible (in seconds)      | `12` (12 seconds)       |
+| `womanHairColor`      | Color of the woman's hair      | `'#F2CA65'` (blonde)       |
+| `womanIntervalMin`      | Minimum interval between the woman's appearances (in seconds)      | `10` (10 seconds)       |
+| `womanIntervalMax`      | Maximum interval between the woman's appearances (in seconds)      | `20` (20 seconds)       |
+| `womanSkinColor`      | Color of the woman's skin      | `'#F8CEB0'` (peach)       |
+| `womanEnabled`    | Whether the woman's dress is enabled | `true`               |
+| `womanShadowBlur` | Shadow blur of the woman's dress| `8`                     |
+| `womanDressGlowOpacity` | Shadow opacity of the woman's dress | `1.0`               |
+| `womanHairGlowOpacity` | Shadow opacity of the woman's hair | `1.0`               |
+| `womanSkinGlowOpacity` | Shadow opacity of the woman's skin | `1.0`               |
 | `fontFamily`      | Font family of the matrix text  | `'monospace'`           |
 | `fontSize`        | Font size of the matrix text    | `16`                    |
 | `interval`        | Time between drawing (in ms)    | `33`                    |
@@ -33,7 +41,10 @@ const app = express();
 const matrixRoute = theMatrixRoute({
     backgroundColor: '#000',
     characters: 'アァカサタナABCDEF123456',
-    dressColor: '#FF1A1A',
+    womanDressColor: '#E60012',
+    womanEnabled: true,
+    womanHairColor: '#F2CA65',
+    womanSkinColor: '#F8CEB0',
     pageTitle: 'The Matrix',
     textColor: '#0F0',
 });
